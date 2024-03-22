@@ -2,9 +2,12 @@ package main
 
 import (
 	"context"
+	"database/sql"
 	"encoding/json"
 	"fmt"
 	"github.com/joho/godotenv"
+	"github.com/kiquetal/go-agreggator-project/internal/database"
+	_ "github.com/lib/pq"
 	"log"
 	"net/http"
 	"os"
@@ -14,6 +17,7 @@ import (
 )
 
 type myApi struct {
+	DB *database.Queries
 }
 
 //headers for cors
@@ -70,7 +74,14 @@ func main() {
 		log.Fatalf("PORT is not set")
 	}
 
-	api := &myApi{}
+	db, err := sql.Open("postgres", os.Getenv("DATABASE_URL"))
+	if err != nil {
+		log.Fatalf("Error opening database: %v", err)
+
+	}
+	api := &myApi{
+		DB: database.New(db),
+	}
 	serverMux := http.NewServeMux()
 	serverMux.HandleFunc("/api/v1/health", api.corsMiddleware(api.healthHandler))
 	serverMux.HandleFunc("/api/v1/err", api.corsMiddleware(api.simulateError))
