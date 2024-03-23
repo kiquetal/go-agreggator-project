@@ -16,11 +16,17 @@ const deleteFeedFollow = `-- name: DeleteFeedFollow :one
 
 DELETE FROM follows_feeds
 WHERE id = $1
+AND user_id = $2
 RETURNING id, created_at, updated_at, user_id, feed_id
 `
 
-func (q *Queries) DeleteFeedFollow(ctx context.Context, id uuid.UUID) (FollowsFeed, error) {
-	row := q.db.QueryRowContext(ctx, deleteFeedFollow, id)
+type DeleteFeedFollowParams struct {
+	ID     uuid.UUID
+	UserID uuid.UUID
+}
+
+func (q *Queries) DeleteFeedFollow(ctx context.Context, arg DeleteFeedFollowParams) (FollowsFeed, error) {
+	row := q.db.QueryRowContext(ctx, deleteFeedFollow, arg.ID, arg.UserID)
 	var i FollowsFeed
 	err := row.Scan(
 		&i.ID,

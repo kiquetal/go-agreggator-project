@@ -2,7 +2,7 @@ POST http://localhost:8080/v1/feeds
 Authorization: ApiKey 6e8c4022c9fa9e8bb6fb8d27d85cf646be438a67e10563f088efcc820b18404f
 
 {
-  "name": "Visitas guiadas",
-  "url": "http://example.com/feed-kiquetal.xml"
+  "name": "Something cool",
+  "url": "http://example.com/feed-kiquetal-something.xml"
 }
 

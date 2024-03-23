@@ -282,6 +282,67 @@ func (api *myApi) createFeedFollow(writer http.ResponseWriter, request *http.Req
 	api.respondWithJSON(writer, http.StatusCreated, follwedFeed)
 }
 
+func (api *myApi) deleteFeedFollow(writer http.ResponseWriter, request *http.Request) {
+
+	apiKey := request.Context().Value("apikey").(string)
+	data, er := api.DB.GetUserByApiKey(context.Background(), sql.NullString{String: apiKey, Valid: true})
+	if er != nil {
+		// check if user is not found
+		if er == sql.ErrNoRows {
+			api.respondWithError(writer, http.StatusNotFound, "User not found")
+			return
+		}
+		api.respondWithError(writer, http.StatusInternalServerError, "Internal Server Error")
+		log.Println("Error getting user: ", er)
+		return
+	}
+	userID := data.ID
+	feedID, err := uuid.Parse(chi.URLParam(request, "feed_id"))
+	if err != nil {
+		api.respondWithError(writer, http.StatusBadRequest, "Invalid feed id")
+		return
+	}
+	_, err = api.DB.DeleteFeedFollow(context.Background(), database.DeleteFeedFollowParams{
+		ID:     feedID,
+		UserID: userID,
+	})
+	if err != nil {
+		if err == sql.ErrNoRows {
+			api.respondWithError(writer, http.StatusNotFound, "Feed follow not found")
+			return
+		}
+
+		api.respondWithError(writer, http.StatusInternalServerError, "Internal Server Error")
+		log.Println("Error deleting feed follow: ", err)
+		return
+	}
+	api.respondWithJSON(writer, http.StatusOK, map[string]string{"message": "Feed follow deleted successfully"})
+}
+
+func (api *myApi) getAllFeedFollowsByUser(writer http.ResponseWriter, request *http.Request) {
+
+	apiKey := request.Context().Value("apikey").(string)
+	data, er := api.DB.GetUserByApiKey(context.Background(), sql.NullString{String: apiKey, Valid: true})
+	if er != nil {
+		// check if user is not found
+		if er == sql.ErrNoRows {
+			api.respondWithError(writer, http.StatusNotFound, "User not found")
+			return
+		}
+		api.respondWithError(writer, http.StatusInternalServerError, "Internal Server Error")
+		log.Println("Error getting user: ", er)
+		return
+	}
+	userID := data.ID
+	feeds, err := api.DB.GetFeedFollows(context.Background(), userID)
+	if err != nil {
+		api.respondWithError(writer, http.StatusInternalServerError, "Internal Server Error")
+		log.Println("Error getting feeds: ", err)
+		return
+	}
+	api.respondWithJSON(writer, http.StatusOK, feeds)
+}
+
 func main() {
 
 	err := godotenv.Load()
@@ -309,6 +370,9 @@ func main() {
 	router.Post("/v1/feeds", api.corsMiddleware(api.verifyHeaderMiddleware(api.createFeed)))
 	router.Get("/v1/feeds", api.corsMiddleware(api.retrieveAllFeeds))
 	router.Post("/v1/feed_follows", api.corsMiddleware(api.verifyHeaderMiddleware(api.createFeedFollow)))
+	router.Get("/v1/feed_follows", api.corsMiddleware(api.verifyHeaderMiddleware(api.getAllFeedFollowsByUser)))
+
+	router.Delete("/v1/feed_follows/{feed_id}", api.corsMiddleware(api.verifyHeaderMiddleware(api.deleteFeedFollow)))
 	srv := &http.Server{
 		Addr:    ":" + portListener,
 		Handler: router,
