@@ -235,6 +235,53 @@ func (api *myApi) retrieveAllFeeds(writer http.ResponseWriter, request *http.Req
 	api.respondWithJSON(writer, http.StatusOK, feeds)
 }
 
+func (api *myApi) createFeedFollow(writer http.ResponseWriter, request *http.Request) {
+
+	apiKey := request.Context().Value("apikey").(string)
+	data, er := api.DB.GetUserByApiKey(context.Background(), sql.NullString{String: apiKey, Valid: true})
+	if er != nil {
+		// check if user is not found
+		if er == sql.ErrNoRows {
+			api.respondWithError(writer, http.StatusNotFound, "User not found")
+			return
+		}
+		api.respondWithError(writer, http.StatusInternalServerError, "Internal Server Error")
+		log.Println("Error getting user: ", er)
+		return
+	}
+	userID := data.ID
+	type requestBody struct {
+		FeedID string `json:"feed_id"`
+	}
+	var body requestBody
+	err := json.NewDecoder(request.Body).Decode(&body)
+	if err != nil {
+		api.respondWithError(writer, http.StatusBadRequest, "Invalid request payload")
+		return
+
+	}
+	feedID, err := uuid.Parse(body.FeedID)
+	if err != nil {
+		api.respondWithError(writer, http.StatusBadRequest, "Invalid feed id")
+		return
+	}
+	// insert to feed
+	follwedFeed, err := api.DB.InsertFeedFollow(context.Background(), database.InsertFeedFollowParams{
+		ID:        uuid.New(),
+		UserID:    userID,
+		FeedID:    feedID,
+		CreatedAt: time.Now(),
+		UpdatedAt: time.Now(),
+	})
+	if err != nil {
+		api.respondWithError(writer, http.StatusInternalServerError, "Internal Server Error")
+		log.Println("Error following feed: ", err)
+		return
+
+	}
+	api.respondWithJSON(writer, http.StatusCreated, follwedFeed)
+}
+
 func main() {
 
 	err := godotenv.Load()
@@ -261,6 +308,7 @@ func main() {
 	router.Get("/v1/users", api.corsMiddleware(api.verifyHeaderMiddleware(api.obtainUser)))
 	router.Post("/v1/feeds", api.corsMiddleware(api.verifyHeaderMiddleware(api.createFeed)))
 	router.Get("/v1/feeds", api.corsMiddleware(api.retrieveAllFeeds))
+	router.Post("/v1/feed_follows", api.corsMiddleware(api.verifyHeaderMiddleware(api.createFeedFollow)))
 	srv := &http.Server{
 		Addr:    ":" + portListener,
 		Handler: router,

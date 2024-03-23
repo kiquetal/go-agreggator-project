@@ -1,0 +1,7 @@
+POST http://localhost:8080/v1/feed_follows
+Authorization: ApiKey 1060034a6cf3552243d8252940a61ee1440d6f37ac0ee51d9dd6e0b6f2a251c8
+Content-Type: application/json
+
+{
+  "feed_id": "4d32b40d-7312-4b1d-9ebe-9c9ae4c6bea8"
+}
