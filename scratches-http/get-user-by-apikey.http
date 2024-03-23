@@ -1,0 +1,2 @@
+GET http://localhost:8080/v1/users
+Authorization: ApiKey 39e0b45defe4264e06a30412668c2174b89254758bc084a6a51f7c785c169e6e

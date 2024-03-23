@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
+	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
 	"github.com/joho/godotenv"
 	"github.com/kiquetal/go-agreggator-project/internal/database"
@@ -13,6 +14,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"strings"
 	"syscall"
 	"time"
 )
@@ -50,14 +52,26 @@ func (api *myApi) respondWithError(w http.ResponseWriter, status int, message st
 	api.respondWithJSON(w, status, map[string]string{"error": message})
 }
 
-func (api *myApi) healthHandler(writer http.ResponseWriter, request *http.Request) {
+func (api *myApi) healthHandler(writer http.ResponseWriter, _ *http.Request) {
 
 	api.respondWithJSON(writer, http.StatusOK, map[string]string{"status": "ok"})
 }
 
-func (api *myApi) simulateError(writer http.ResponseWriter, request *http.Request) {
+func (api *myApi) simulateError(writer http.ResponseWriter, _ *http.Request) {
 
 	api.respondWithError(writer, http.StatusInternalServerError, "Internal Server Error")
+}
+
+func (api *myApi) verifyHeaderMiddleware(next http.HandlerFunc) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if r.Header.Get("Authorization") == "" {
+			api.respondWithError(w, http.StatusUnauthorized, "Unauthorized")
+			return
+		}
+		apikey := strings.Split(r.Header.Get("Authorization"), "ApiKey ")[1]
+		ctx := context.WithValue(r.Context(), "apikey", apikey)
+		next(w, r.WithContext(ctx))
+	}
 }
 
 func (api *myApi) createUsers(writer http.ResponseWriter, request *http.Request) {
@@ -97,6 +111,36 @@ func (api *myApi) createUsers(writer http.ResponseWriter, request *http.Request)
 
 }
 
+func (api *myApi) obtainUser(writer http.ResponseWriter, request *http.Request) {
+
+	apikey := request.Context().Value("apikey").(string)
+	user, err := api.DB.GetUserByApiKey(context.Background(), sql.NullString{String: apikey, Valid: true})
+	if err != nil {
+		// check if user is not found
+		if err == sql.ErrNoRows {
+			api.respondWithError(writer, http.StatusNotFound, "User not found")
+			return
+		}
+
+		api.respondWithError(writer, http.StatusInternalServerError, "Internal Server Error")
+		log.Println("Error getting user: ", err)
+		return
+	}
+	api.respondWithJSON(writer, http.StatusOK, struct {
+		ID        uuid.UUID `json:"id"`
+		Name      string    `json:"name"`
+		CreatedAt time.Time `json:"created_at"`
+		UpdatedAt time.Time `json:"updated_at"`
+		ApiKey    string    `json:"api_key"`
+	}{
+		ID:        user.ID,
+		Name:      user.Name,
+		CreatedAt: user.CreatedAt,
+		UpdatedAt: user.UpdatedAt,
+		ApiKey:    user.ApiKey.String,
+	})
+}
+
 func main() {
 
 	err := godotenv.Load()
@@ -116,13 +160,14 @@ func main() {
 	api := &myApi{
 		DB: database.New(db),
 	}
-	serverMux := http.NewServeMux()
-	serverMux.HandleFunc("/api/v1/health", api.corsMiddleware(api.healthHandler))
-	serverMux.HandleFunc("/api/v1/err", api.corsMiddleware(api.simulateError))
-	serverMux.HandleFunc("/v1/users", api.corsMiddleware(api.createUsers))
+	router := chi.NewRouter()
+	router.HandleFunc("/api/v1/health", api.corsMiddleware(api.healthHandler))
+	router.HandleFunc("/api/v1/err", api.corsMiddleware(api.simulateError))
+	router.Post("/v1/users", api.corsMiddleware(api.createUsers))
+	router.Get("/v1/users", api.corsMiddleware(api.verifyHeaderMiddleware(api.obtainUser)))
 	srv := &http.Server{
 		Addr:    ":" + portListener,
-		Handler: serverMux,
+		Handler: router,
 	}
 	fmt.Println("Server is running on port: ", portListener)
 
