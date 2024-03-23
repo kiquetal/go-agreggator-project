@@ -68,8 +68,13 @@ func (api *myApi) verifyHeaderMiddleware(next http.HandlerFunc) http.HandlerFunc
 			api.respondWithError(w, http.StatusUnauthorized, "Unauthorized")
 			return
 		}
-		apikey := strings.Split(r.Header.Get("Authorization"), "ApiKey ")[1]
-		ctx := context.WithValue(r.Context(), "apikey", apikey)
+		apikey := strings.Split(r.Header.Get("Authorization"), "ApiKey ")
+		if len(apikey) != 2 {
+			api.respondWithError(w, http.StatusUnauthorized, "Unauthorized")
+			return
+		}
+		apikeyStr := strings.TrimSpace(apikey[1])
+		ctx := context.WithValue(r.Context(), "apikey", apikeyStr)
 		next(w, r.WithContext(ctx))
 	}
 }
@@ -141,6 +146,47 @@ func (api *myApi) obtainUser(writer http.ResponseWriter, request *http.Request) 
 	})
 }
 
+func (api *myApi) createFeed(writer http.ResponseWriter, request *http.Request) {
+
+	apiKey := request.Context().Value("apikey").(string)
+
+	data, er := api.DB.GetUserByApiKey(context.Background(), sql.NullString{String: apiKey, Valid: true})
+	if er != nil {
+		api.respondWithError(writer, http.StatusInternalServerError, "Internal Server Error")
+		log.Println("Error getting user: ", er)
+		return
+	}
+	userID := data.ID
+	type requestBody struct {
+		Name string `json:"name"`
+		Url  string `json:"url"`
+	}
+	var body requestBody
+	err := json.NewDecoder(request.Body).Decode(&body)
+	if err != nil {
+		api.respondWithError(writer, http.StatusBadRequest, "Invalid request payload")
+		return
+
+	}
+	// insert to feed
+	feed, err := api.DB.InsertFeed(context.Background(), database.InsertFeedParams{
+		ID:        uuid.New(),
+		Name:      body.Name,
+		Url:       body.Url,
+		CreatedAt: time.Now(),
+		UpdatedAt: time.Now(),
+		UserID:    userID,
+	})
+	if err != nil {
+		api.respondWithError(writer, http.StatusInternalServerError, "Internal Server Error")
+		log.Println("Error creating feed: ", err)
+		return
+
+	}
+	api.respondWithJSON(writer, http.StatusCreated, feed)
+
+}
+
 func main() {
 
 	err := godotenv.Load()
@@ -165,6 +211,7 @@ func main() {
 	router.HandleFunc("/api/v1/err", api.corsMiddleware(api.simulateError))
 	router.Post("/v1/users", api.corsMiddleware(api.createUsers))
 	router.Get("/v1/users", api.corsMiddleware(api.verifyHeaderMiddleware(api.obtainUser)))
+	router.Post("/v1/feeds", api.corsMiddleware(api.verifyHeaderMiddleware(api.createFeed)))
 	srv := &http.Server{
 		Addr:    ":" + portListener,
 		Handler: router,
