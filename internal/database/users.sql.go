@@ -16,7 +16,7 @@ import (
 const createUser = `-- name: CreateUser :one
 INSERT INTO users(id,name,created_at,updated_at,api_key)
 VALUES($1,$2,$3,$4,encode(sha256(random()::text::bytea), 'hex'))
-RETURNING id,name,created_at,updated_at
+RETURNING id,name,created_at,updated_at,api_key
 `
 
 type CreateUserParams struct {
@@ -31,6 +31,7 @@ type CreateUserRow struct {
 	Name      string
 	CreatedAt time.Time
 	UpdatedAt time.Time
+	ApiKey    sql.NullString
 }
 
 func (q *Queries) CreateUser(ctx context.Context, arg CreateUserParams) (CreateUserRow, error) {
@@ -46,6 +47,7 @@ func (q *Queries) CreateUser(ctx context.Context, arg CreateUserParams) (CreateU
 		&i.Name,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.ApiKey,
 	)
 	return i, err
 }

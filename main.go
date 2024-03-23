@@ -112,7 +112,19 @@ func (api *myApi) createUsers(writer http.ResponseWriter, request *http.Request)
 		return
 
 	}
-	api.respondWithJSON(writer, http.StatusCreated, user)
+	api.respondWithJSON(writer, http.StatusCreated, struct {
+		Id        uuid.UUID `json:"id"`
+		Name      string    `json:"name"`
+		CreatedAt time.Time `json:"created_at"`
+		UpdatedAt time.Time `json:"updated_at"`
+		ApiKey    string
+	}{
+		Id:        user.ID,
+		Name:      user.Name,
+		CreatedAt: user.CreatedAt,
+		UpdatedAt: user.UpdatedAt,
+		ApiKey:    user.ApiKey.String,
+	})
 
 }
 
@@ -152,6 +164,11 @@ func (api *myApi) createFeed(writer http.ResponseWriter, request *http.Request) 
 
 	data, er := api.DB.GetUserByApiKey(context.Background(), sql.NullString{String: apiKey, Valid: true})
 	if er != nil {
+		// check if user is not found
+		if er == sql.ErrNoRows {
+			api.respondWithError(writer, http.StatusNotFound, "User not found")
+			return
+		}
 		api.respondWithError(writer, http.StatusInternalServerError, "Internal Server Error")
 		log.Println("Error getting user: ", er)
 		return
@@ -178,13 +195,44 @@ func (api *myApi) createFeed(writer http.ResponseWriter, request *http.Request) 
 		UserID:    userID,
 	})
 	if err != nil {
+
 		api.respondWithError(writer, http.StatusInternalServerError, "Internal Server Error")
 		log.Println("Error creating feed: ", err)
 		return
 
 	}
-	api.respondWithJSON(writer, http.StatusCreated, feed)
+	folledFeed, err := api.DB.InsertFeedFollow(context.Background(), database.InsertFeedFollowParams{
+		ID:        uuid.New(),
+		UserID:    userID,
+		FeedID:    feed.ID,
+		CreatedAt: time.Now(),
+		UpdatedAt: time.Now(),
+	})
+	if err != nil {
+		api.respondWithError(writer, http.StatusInternalServerError, "Internal Server Error")
+		log.Println("Error following feed: ", err)
+		return
 
+	}
+	api.respondWithJSON(writer, http.StatusCreated, struct {
+		Feed         database.Feed        `json:"feed"`
+		FollowedFeed database.FollowsFeed `json:"followed_feed"`
+	}{
+		Feed:         feed,
+		FollowedFeed: folledFeed,
+	})
+
+}
+
+func (api *myApi) retrieveAllFeeds(writer http.ResponseWriter, request *http.Request) {
+
+	feeds, err := api.DB.GetAllFeeds(context.Background())
+	if err != nil {
+		api.respondWithError(writer, http.StatusInternalServerError, "Internal Server Error")
+		log.Println("Error getting feeds: ", err)
+		return
+	}
+	api.respondWithJSON(writer, http.StatusOK, feeds)
 }
 
 func main() {
@@ -212,6 +260,7 @@ func main() {
 	router.Post("/v1/users", api.corsMiddleware(api.createUsers))
 	router.Get("/v1/users", api.corsMiddleware(api.verifyHeaderMiddleware(api.obtainUser)))
 	router.Post("/v1/feeds", api.corsMiddleware(api.verifyHeaderMiddleware(api.createFeed)))
+	router.Get("/v1/feeds", api.corsMiddleware(api.retrieveAllFeeds))
 	srv := &http.Server{
 		Addr:    ":" + portListener,
 		Handler: router,
