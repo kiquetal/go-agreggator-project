@@ -71,6 +71,42 @@ func (q *Queries) GetAllFeedFollowsByUser(ctx context.Context, userID uuid.UUID)
 	return items, nil
 }
 
+const getFeedFollows = `-- name: GetFeedFollows :many
+
+SELECT ff.id, ff.created_at, ff.updated_at, ff.user_id, ff.feed_id
+FROM follows_feeds ff
+WHERE ff.user_id = $1
+`
+
+func (q *Queries) GetFeedFollows(ctx context.Context, userID uuid.UUID) ([]FollowsFeed, error) {
+	rows, err := q.db.QueryContext(ctx, getFeedFollows, userID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []FollowsFeed
+	for rows.Next() {
+		var i FollowsFeed
+		if err := rows.Scan(
+			&i.ID,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+			&i.UserID,
+			&i.FeedID,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const insertFeedFollow = `-- name: InsertFeedFollow :one
 
 INSERT INTO follows_feeds (id,user_id, feed_id, created_at, updated_at)

@@ -17,3 +17,9 @@ FROM feeds f
 JOIN follows_feeds ff
 ON f.id = ff.feed_id
 WHERE ff.user_id = $1;
+
+-- name: GetFeedFollows :many
+
+SELECT ff.*
+FROM follows_feeds ff
+WHERE ff.user_id = $1;
