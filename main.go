@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
+	"github.com/google/uuid"
 	"github.com/joho/godotenv"
 	"github.com/kiquetal/go-agreggator-project/internal/database"
 	_ "github.com/lib/pq"
@@ -42,10 +43,6 @@ func (api *myApi) respondWithJSON(w http.ResponseWriter, status int, data interf
 	if err := en.Encode(data); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 	}
-	err := en.Encode(data)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-	}
 
 }
 
@@ -61,6 +58,43 @@ func (api *myApi) healthHandler(writer http.ResponseWriter, request *http.Reques
 func (api *myApi) simulateError(writer http.ResponseWriter, request *http.Request) {
 
 	api.respondWithError(writer, http.StatusInternalServerError, "Internal Server Error")
+}
+
+func (api *myApi) createUsers(writer http.ResponseWriter, request *http.Request) {
+
+	log.Println("Creating user")
+	//check body
+	type bodyPost struct {
+		Name string `json:"name"`
+	}
+
+	var body bodyPost
+	err := json.NewDecoder(request.Body).Decode(&body)
+	if err != nil {
+		api.respondWithError(writer, http.StatusBadRequest, "Invalid request payload")
+		return
+	}
+	if body.Name == "" {
+		api.respondWithError(writer, http.StatusBadRequest, "Name is required")
+		return
+
+	}
+
+	//create user
+	user, err := api.DB.CreateUser(context.Background(), database.CreateUserParams{
+		ID:        uuid.New(),
+		Name:      body.Name,
+		CreatedAt: time.Now(),
+		UpdatedAt: time.Now(),
+	})
+	if err != nil {
+		api.respondWithError(writer, http.StatusInternalServerError, "Internal Server Error")
+		log.Println("Error creating user: ", err)
+		return
+
+	}
+	api.respondWithJSON(writer, http.StatusCreated, user)
+
 }
 
 func main() {
@@ -85,6 +119,7 @@ func main() {
 	serverMux := http.NewServeMux()
 	serverMux.HandleFunc("/api/v1/health", api.corsMiddleware(api.healthHandler))
 	serverMux.HandleFunc("/api/v1/err", api.corsMiddleware(api.simulateError))
+	serverMux.HandleFunc("/v1/users", api.corsMiddleware(api.createUsers))
 	srv := &http.Server{
 		Addr:    ":" + portListener,
 		Handler: serverMux,
