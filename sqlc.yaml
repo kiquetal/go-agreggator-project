@@ -2,7 +2,12 @@ version: "2"
 sql:
   - schema: "sql/schema"
     queries: "sql/queries"
+    strict_order_by: false
     engine: postgresql
     gen:
       go:
         out: "internal/database"
+        overrides:
+          - nullable: true
+            column: "feeds.last_fetched_at"
+

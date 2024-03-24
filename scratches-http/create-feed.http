@@ -1,5 +1,5 @@
 POST http://localhost:8080/v1/feeds
-Authorization: ApiKey 6e8c4022c9fa9e8bb6fb8d27d85cf646be438a67e10563f088efcc820b18404f
+Authorization: ApiKey 425a7237fd6c36a76b2e7400a370e67608f619118a34f9fa9b3c79314fbe21fc
 
 {
   "name": "Something cool",

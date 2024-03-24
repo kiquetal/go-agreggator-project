@@ -1,11 +1,14 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <project version="4">
   <component name="SqlDialectMappings">
+    <file url="file://$PROJECT_DIR$/sql/migrations/22_alter_add_column_feeds.sql" dialect="PostgreSQL" />
     <file url="file://$PROJECT_DIR$/sql/queries/feeds.sql" dialect="PostgreSQL" />
     <file url="file://$PROJECT_DIR$/sql/queries/feeds_follow.sql" dialect="PostgreSQL" />
     <file url="file://$PROJECT_DIR$/sql/queries/users.sql" dialect="PostgreSQL" />
     <file url="file://$PROJECT_DIR$/sql/schema/001_users.sql" dialect="PostgreSQL" />
+    <file url="file://$PROJECT_DIR$/sql/schema/002_users_api_key.sql" dialect="PostgreSQL" />
     <file url="file://$PROJECT_DIR$/sql/schema/003_feeds.sql" dialect="PostgreSQL" />
     <file url="file://$PROJECT_DIR$/sql/schema/004_follows_feeds.sql" dialect="PostgreSQL" />
+    <file url="file://$PROJECT_DIR$/sql/schema/005_feeds_last_fetched_at.sql" dialect="PostgreSQL" />
   </component>
 </project>

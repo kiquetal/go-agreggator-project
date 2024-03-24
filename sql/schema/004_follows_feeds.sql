@@ -1,4 +1,4 @@
--- +goose UP
+-- +goose Up
 
 CREATE TABLE follows_feeds(
                       id UUID PRIMARY KEY,

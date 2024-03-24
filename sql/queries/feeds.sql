@@ -8,3 +8,16 @@ RETURNING *;
 
 SELECT * FROM feeds;
 
+
+-- name: GetNexFeedsToFetch :many
+
+SELECT * FROM feeds WHERE last_fetched_at IS NULL OR last_fetched_at < date_trunc('hour', now() - interval '1 week')
+ORDER BY last_fetched_at ASC NULLS FIRST;
+
+-- name: MarkedFetched :one
+
+UPDATE feeds
+SET last_fetched_at = $1 ,
+   updated_at = $2
+WHERE id = $3
+RETURNING *;

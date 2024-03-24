@@ -1,4 +1,4 @@
--- +goose UP
+-- +goose Up
 
 CREATE TABLE feeds(
         id UUID PRIMARY KEY,
@@ -6,9 +6,7 @@ CREATE TABLE feeds(
         updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,
         name TEXT NOT NULL,
         url TEXT NOT NULL,
-        user_id UUID NOT NULL,
-        FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
-        CONSTRAINT unique_url UNIQUE (url)
+        user_id UUID NOT NULL
 );
 
 -- +goose Down

@@ -9,6 +9,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/joho/godotenv"
 	"github.com/kiquetal/go-agreggator-project/internal/database"
+	"github.com/kiquetal/go-agreggator-project/scrapping"
 	_ "github.com/lib/pq"
 	"log"
 	"net/http"
@@ -117,7 +118,7 @@ func (api *myApi) createUsers(writer http.ResponseWriter, request *http.Request)
 		Name      string    `json:"name"`
 		CreatedAt time.Time `json:"created_at"`
 		UpdatedAt time.Time `json:"updated_at"`
-		ApiKey    string
+		ApiKey    string    `json:"api_key"`
 	}{
 		Id:        user.ID,
 		Name:      user.Name,
@@ -362,6 +363,15 @@ func main() {
 	api := &myApi{
 		DB: database.New(db),
 	}
+
+	go func() {
+		ticker := time.NewTicker(60 * time.Second)
+		defer ticker.Stop()
+		for range ticker.C {
+			scrapping.FetchFeeds(api.DB)
+		}
+	}()
+
 	router := chi.NewRouter()
 	router.HandleFunc("/api/v1/health", api.corsMiddleware(api.healthHandler))
 	router.HandleFunc("/api/v1/err", api.corsMiddleware(api.simulateError))
