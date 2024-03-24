@@ -30,7 +30,8 @@ func FetchFeeds(db *database.Queries) {
 				ID:        feed.ID,
 				UpdatedAt: time.Now(),
 				LastFetchedAt: sql.NullTime{
-					Time: time.Now(),
+					Time:  time.Now(),
+					Valid: true,
 				},
 			})
 			if err != nil {
