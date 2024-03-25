@@ -344,6 +344,30 @@ func (api *myApi) getAllFeedFollowsByUser(writer http.ResponseWriter, request *h
 	api.respondWithJSON(writer, http.StatusOK, feeds)
 }
 
+func (api *myApi) getAllPostsByUser(writer http.ResponseWriter, request *http.Request) {
+
+	apiKey := request.Context().Value("apikey").(string)
+	data, er := api.DB.GetUserByApiKey(context.Background(), sql.NullString{String: apiKey, Valid: true})
+	if er != nil {
+		// check if user is not found
+		if er == sql.ErrNoRows {
+			api.respondWithError(writer, http.StatusNotFound, "User not found")
+			return
+		}
+		api.respondWithError(writer, http.StatusInternalServerError, "Internal Server Error")
+		log.Println("Error getting user: ", er)
+		return
+	}
+	userID := data.ID
+	posts, err := api.DB.GetPostByUsers(context.Background(), userID)
+	if err != nil {
+		api.respondWithError(writer, http.StatusInternalServerError, "Internal Server Error")
+		log.Println("Error getting posts: ", err)
+		return
+	}
+	api.respondWithJSON(writer, http.StatusOK, posts)
+}
+
 func main() {
 
 	err := godotenv.Load()
@@ -381,7 +405,7 @@ func main() {
 	router.Get("/v1/feeds", api.corsMiddleware(api.retrieveAllFeeds))
 	router.Post("/v1/feed_follows", api.corsMiddleware(api.verifyHeaderMiddleware(api.createFeedFollow)))
 	router.Get("/v1/feed_follows", api.corsMiddleware(api.verifyHeaderMiddleware(api.getAllFeedFollowsByUser)))
-
+	router.Get("/v1/posts", api.corsMiddleware(api.verifyHeaderMiddleware(api.getAllPostsByUser)))
 	router.Delete("/v1/feed_follows/{feed_id}", api.corsMiddleware(api.verifyHeaderMiddleware(api.deleteFeedFollow)))
 	srv := &http.Server{
 		Addr:    ":" + portListener,
