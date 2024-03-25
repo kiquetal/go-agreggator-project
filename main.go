@@ -361,9 +361,18 @@ func (api *myApi) getAllPostsByUser(writer http.ResponseWriter, request *http.Re
 	userID := data.ID
 	posts, err := api.DB.GetPostByUsers(context.Background(), userID)
 	if err != nil {
+		if err == sql.ErrNoRows {
+			api.respondWithError(writer, http.StatusNotFound, "Posts not found")
+			return
+		}
 		api.respondWithError(writer, http.StatusInternalServerError, "Internal Server Error")
 		log.Println("Error getting posts: ", err)
 		return
+	}
+	if len(posts) == 0 {
+		api.respondWithError(writer, http.StatusNotFound, "Posts not found")
+		return
+
 	}
 	api.respondWithJSON(writer, http.StatusOK, posts)
 }
