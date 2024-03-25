@@ -4,6 +4,8 @@ import (
 	"context"
 	"database/sql"
 	"encoding/xml"
+	"fmt"
+	"github.com/google/uuid"
 	"github.com/kiquetal/go-agreggator-project/internal/database"
 	"log"
 	"net/http"
@@ -43,9 +45,64 @@ func FetchFeeds(db *database.Queries) {
 	}
 	wg.Wait()
 	for _, item := range allFetchedFeeds {
-		log.Printf("item: %v\n", item.Title)
+		// insert into post
+
+		timeToDB, errDate := convertData(item.PubDate)
+		isValid := true
+		if errDate != nil {
+			log.Printf("error parsing date: %v", errDate)
+			isValid = false
+		}
+		_, err := db.InsertPost(context.Background(), database.InsertPostParams{
+			ID: uuid.New(),
+			Title: sql.NullString{
+				String: item.Title,
+				Valid:  true,
+			},
+			Url: sql.NullString{
+				String: item.Link,
+				Valid:  true,
+			},
+			Description: sql.NullString{
+				String: item.Description,
+				Valid:  true,
+			},
+			PublishedAt: sql.NullTime{
+				Time:  timeToDB,
+				Valid: isValid,
+			},
+			FeedID: uuid.NullUUID{
+				UUID:  uuid.MustParse(item.FeedId),
+				Valid: true,
+			},
+		})
+		if err != nil {
+			log.Printf("error inserting post: %v", err)
+		}
+		log.Println("inserted post: ", item.Title)
 
 	}
+}
+
+func convertData(date string) (time.Time, error) {
+	var t time.Time
+	var err error
+	formats := []string{
+		time.RFC1123Z,
+		time.RFC1123,
+		time.RFC822Z,
+		time.RFC822,
+	}
+
+	for _, format := range formats {
+		t, err = time.Parse(format, date)
+		if err == nil {
+			return t, nil
+		}
+	}
+
+	return t, fmt.Errorf("unable to parse date: %s", date)
+
 }
 
 func downloadFeed(feed database.Feed) (allFetchedFeeds []Item) {
@@ -63,7 +120,12 @@ func downloadFeed(feed database.Feed) (allFetchedFeeds []Item) {
 		return
 
 	}
-	return RssFeed.Channel.Items
+	var items []Item
+	for _, item := range RssFeed.Channel.Items {
+		item.FeedId = feed.ID.String()
+		items = append(items, item)
+	}
+	return items
 }
 
 type Rss struct {
@@ -82,4 +144,6 @@ type Item struct {
 	Link        string `xml:"link"`
 	Guid        string `xml:"guid""`
 	Description string `xml:"description""`
+	PubDate     string `xml:"pubDate""`
+	FeedId      string
 }

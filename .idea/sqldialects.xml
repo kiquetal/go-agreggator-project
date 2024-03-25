@@ -10,5 +10,6 @@
     <file url="file://$PROJECT_DIR$/sql/schema/003_feeds.sql" dialect="PostgreSQL" />
     <file url="file://$PROJECT_DIR$/sql/schema/004_follows_feeds.sql" dialect="PostgreSQL" />
     <file url="file://$PROJECT_DIR$/sql/schema/005_feeds_last_fetched_at.sql" dialect="PostgreSQL" />
+    <file url="file://$PROJECT_DIR$/sql/schema/006_posts.sql" dialect="PostgreSQL" />
   </component>
 </project>
